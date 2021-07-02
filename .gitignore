@@ -12,4 +12,5 @@ target/
 .cache
 .ensime*
 .bloop/*
+.bsp/
 .metals/*

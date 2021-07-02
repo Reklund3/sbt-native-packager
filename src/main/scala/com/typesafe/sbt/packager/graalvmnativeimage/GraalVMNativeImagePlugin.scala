@@ -1,15 +1,15 @@
 package com.typesafe.sbt.packager.graalvmnativeimage
 
-import java.io.ByteArrayInputStream
-
-import sbt._
-import sbt.Keys.{mainClass, name, _}
-import com.typesafe.sbt.packager.{MappingsHelper, Stager}
-import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.Compat._
+import com.typesafe.sbt.packager.Keys._
 import com.typesafe.sbt.packager.archetypes.JavaAppPackaging
 import com.typesafe.sbt.packager.docker.{Cmd, DockerPlugin, Dockerfile, ExecCmd}
 import com.typesafe.sbt.packager.universal.UniversalPlugin
+import com.typesafe.sbt.packager.{MappingsHelper, Stager}
+import sbt.Keys.{mainClass, name, _}
+import sbt._
+
+import java.io.ByteArrayInputStream
 
 /**
   * Plugin to compile ahead-of-time native executables.
@@ -35,6 +35,7 @@ object GraalVMNativeImagePlugin extends AutoPlugin {
 
   override lazy val projectSettings: Seq[Setting[_]] = Seq(
     target in GraalVMNativeImage := target.value / "graalvm-native-image",
+    graalVMBuildContainerOptions := Seq.empty,
     graalVMNativeImageOptions := Seq.empty,
     graalVMNativeImageGraalVersion := None,
     graalVMNativeImageCommand := "native-image",
@@ -58,6 +59,7 @@ object GraalVMNativeImagePlugin extends AutoPlugin {
       val nativeImageCommand = graalVMNativeImageCommand.value
       val className = mainClass.value.getOrElse(sys.error("Could not find a main class."))
       val classpathJars = scriptClasspathOrdering.value
+      val extraBuildContinerOptions = graalVMBuildContainerOptions.value
       val extraOptions = graalVMNativeImageOptions.value
       val streams = Keys.streams.value
       val dockerCommand = DockerPlugin.autoImport.dockerExecCommand.value
@@ -80,6 +82,7 @@ object GraalVMNativeImagePlugin extends AutoPlugin {
           val resourceMappings = MappingsHelper.relative(graalResources, graalResourceDirectories)
 
           buildInDockerContainer(
+            extraBuildContinerOptions,
             targetDirectory,
             binaryName,
             className,
@@ -119,6 +122,7 @@ object GraalVMNativeImagePlugin extends AutoPlugin {
   }
 
   private def buildInDockerContainer(
+    extraBuildContainerOptions: Seq[String],
     targetDirectory: File,
     binaryName: String,
     className: String,
@@ -132,9 +136,7 @@ object GraalVMNativeImagePlugin extends AutoPlugin {
 
     stage(targetDirectory, classpathJars, resources, streams)
 
-    val command = dockerCommand ++ Seq(
-      "run",
-      "--rm",
+    val command = dockerCommand ++ Seq("run", "--rm") ++ extraBuildContainerOptions ++ Seq(
       "-v",
       s"${targetDirectory.getAbsolutePath}:/opt/graalvm",
       image,
