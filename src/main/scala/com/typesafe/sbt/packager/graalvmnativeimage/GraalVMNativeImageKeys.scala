@@ -8,6 +8,9 @@ import sbt._
   * GraalVM settings
   */
 trait GraalVMNativeImageKeys {
+  val graalVMBuildContainerOptions =
+    settingKey[Seq[String]]("GraalVM build container options, ex: --user")
+
   val graalVMNativeImageOptions =
     settingKey[Seq[String]]("GraalVM native-image options")
 
